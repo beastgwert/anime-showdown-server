@@ -21,6 +21,7 @@ app.get("/api", async (req, res) => {
     const cardInfo = await db.getCards(req.query.email);
     const stagesInfo = await db.getStagesComplete(req.query.email);
     const levelPoints = await db.getLevelPoints(req.query.email);
+    const cardLevels = await db.getCardLevels(req.query.email);
 
     console.log("Card Info: ", cardInfo);
     console.log("Player Info: ", playerInfo);
@@ -28,7 +29,8 @@ app.get("/api", async (req, res) => {
         playerInfo: playerInfo,
         cardInfo: cardInfo,
         stagesInfo: stagesInfo,
-        levelPoints: levelPoints
+        levelPoints: levelPoints,
+        cardLevels: cardLevels
     });
 });
 

@@ -35,6 +35,21 @@ async function getLevelPoints(email){
     return pointsArray;
 }
 
+async function getCardLevels(email){
+    const loadoutCardLevels = await pool.query('SELECT anime_character, level FROM loadoutCards WHERE email = ($1)', [email]);
+    const inventoryCardLevels = await pool.query('SELECT anime_character, level FROM inventoryCards WHERE email = ($1)', [email]);
+    const loadoutObj = {};
+    const inventoryObj = {};
+    loadoutCardLevels.rows.forEach((obj) => {
+        loadoutObj[obj.anime_character] = obj.level;
+    })
+    inventoryCardLevels.rows.forEach((obj) => {
+        inventoryObj[obj.anime_character] = obj.level;
+    })
+    console.log("loadout and inventory card levels: ", {...loadoutObj, ...inventoryObj});
+    return {...loadoutObj, ...inventoryObj};
+}
+
 async function insertPlayer(email, username){
     await pool.query("INSERT INTO players (email, username, level_points) VALUES ($1, $2, 0)", [email, username]);
 }
@@ -79,6 +94,7 @@ module.exports = {
     getCards,
     getStagesComplete,
     getLevelPoints,
+    getCardLevels,
     insertPlayer,
     insertCards,
     insertStagesComplete,
