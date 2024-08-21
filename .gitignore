@@ -1,4 +1,4 @@
 # dependencies
 /node_modules
-db/pool.js
-db/populatedb.js
+/db/pool.js
+/db/populatedb.js
