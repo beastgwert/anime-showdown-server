@@ -70,7 +70,7 @@ async function deleteStagesComplete(email){
 }
 
 async function updateLevelPoints(email, levelPoints){
-    await pool.query("UPDATE players SET level_points = ($2) WHERE email = ($1)", [email, levelPoints])
+    await pool.query("UPDATE players SET level_points = ($2) WHERE email = ($1)", [email, parseInt(levelPoints)])
 }
 
 module.exports = {
