@@ -4,7 +4,7 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const corsOptions = {
-    origin: ["http://localhost:5173", "http://anime-showdown.vercel.app"],
+    origin: ["http://localhost:5173", "https://anime-showdown.vercel.app"],
 };
 
 app.use(cors(corsOptions));
