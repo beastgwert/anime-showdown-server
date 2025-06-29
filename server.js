@@ -70,8 +70,9 @@ app.post("/api/auth/login", async (req, res) => {
     res.cookie('auth_token', credential, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        path: '/'
     });
     
     res.json({ success: true });
