@@ -84,7 +84,12 @@ app.get("/api/auth/check", (req, res) => {
 });
 
 app.post("/api/auth/logout", (req, res) => {
-    res.clearCookie('auth_token');
+    res.clearCookie('auth_token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        path: '/'
+    });
     res.json({ success: true });
 });
 
