@@ -4,6 +4,10 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const cookieParser = require('cookie-parser');
+const http = require('http');
+const server = http.createServer(app);
+const { Server } = require('socket.io');
+const socketHandler = require('./socket/socketHandler');
 
 const corsOptions = {
     origin: ["http://localhost:5173", "https://anime-showdown.vercel.app"],
@@ -94,4 +98,18 @@ app.post("/api/auth/logout", (req, res) => {
 });
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`Express app listening on port ${PORT}`));
+
+// Initialize Socket.io
+const io = new Server(server, {
+  cors: {
+    origin: ["http://localhost:5173", "https://anime-showdown.vercel.app"],
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
+// Initialize socket handlers
+socketHandler.initializeSocketHandlers(io);
+
+// Start server
+server.listen(PORT, () => console.log(`Server running on port ${PORT} with Socket.io`));

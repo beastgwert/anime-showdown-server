@@ -1,0 +1,194 @@
+/**
+ * Socket Handler for Multiplayer Anime Card Game
+ * Manages socket connections and events
+ */
+
+const roomManager = require('./roomManager');
+const gameStateManager = require('./gameStateManager');
+
+/**
+ * Initializes socket handlers for a socket.io instance
+ * @param {Object} io - Socket.io server instance
+ */
+function initializeSocketHandlers(io) {
+  // Set up connection event
+  io.on('connection', (socket) => {
+    console.log(`New socket connection: ${socket.id}`);
+    
+    // Room creation
+    socket.on('create-room', () => {
+      const room = roomManager.createRoom(socket.id);
+      
+      // Join socket to room
+      socket.join(room.roomId);
+      
+      // Notify client
+      socket.emit('room-created', {
+        roomId: room.roomId,
+        isHost: true
+      });
+      
+      console.log(`Room created: ${room.roomId} by ${socket.id}`);
+    });
+    
+    // Room joining
+    socket.on('join-room', (data) => {
+      const { roomId } = data;
+      
+      // Validate and join room
+      const joinResult = roomManager.joinRoom(roomId, socket.id);
+      
+      if (joinResult.error) {
+        // Send error to client
+        socket.emit('room-error', { error: joinResult.error });
+        return;
+      }
+      
+      // Join socket to room
+      socket.join(roomId);
+      
+      // Notify client
+      socket.emit('room-joined', {
+        roomId,
+        isHost: false
+      });
+      
+      // Notify all players in room
+      io.to(roomId).emit('room-updated', {
+        roomId,
+        players: joinResult.players,
+        gameState: joinResult.gameState
+      });
+      
+      // Notify host that guest joined
+      io.to(joinResult.host).emit('player-joined', {
+        socketId: socket.id
+      });
+      
+      console.log(`Player ${socket.id} joined room ${roomId}`);
+    });
+    
+    // Start game
+    socket.on('start-game', () => {
+      // Get room for this socket
+      const roomData = roomManager.getRoomBySocketId(socket.id);
+      
+      if (!roomData) {
+        socket.emit('room-error', { error: 'Not in a room' });
+        return;
+      }
+      
+      // Verify sender is host
+      if (roomData.host !== socket.id) {
+        socket.emit('room-error', { error: 'Only host can start game' });
+        return;
+      }
+      
+      // Check if room has enough players
+      if (roomData.players.length < 2) {
+        socket.emit('room-error', { error: 'Need at least 2 players' });
+        return;
+      }
+      
+      // Update room state
+      const updatedRoom = roomManager.updateGameState(roomData.roomId, 'playing');
+      
+      // Initialize game state
+      const gameState = gameStateManager.initializeGameState(roomData.roomId, updatedRoom.players);
+      
+      // Notify all players
+      io.to(roomData.roomId).emit('game-started', {
+        roomId: roomData.roomId,
+        gameState: gameState
+      });
+      
+      console.log(`Game started in room ${roomData.roomId}`);
+    });
+    
+    // Leave room
+    socket.on('leave-room', () => {
+      const result = roomManager.leaveRoom(socket.id);
+      
+      if (result.error) {
+        socket.emit('room-error', { error: result.error });
+        return;
+      }
+      
+      // Leave socket room
+      if (result.roomId) {
+        socket.leave(result.roomId);
+      }
+      
+      // Client already handles state cleanup locally
+      
+      // If room still exists, notify remaining players
+      if (!result.roomDeleted && result.room) {
+        io.to(result.roomId).emit('player-left', {
+          socketId: socket.id,
+          room: result.room
+        });
+      }
+      
+      console.log(`Player ${socket.id} left room ${result.roomId}`);
+    });
+    
+    // Game action
+    socket.on('game-action', (data) => {
+      const { action } = data;
+      
+      // Get room for this socket
+      const roomData = roomManager.getRoomBySocketId(socket.id);
+      
+      if (!roomData) {
+        socket.emit('room-error', { error: 'Not in a room' });
+        return;
+      }
+      
+      // Process game action
+      const updatedState = gameStateManager.processGameAction(
+        roomData.roomId,
+        socket.id,
+        action
+      );
+      
+      if (updatedState.error) {
+        socket.emit('game-error', { error: updatedState.error });
+        return;
+      }
+      
+      // Send personalized game state to each player
+      roomData.players.forEach(player => {
+        const playerView = gameStateManager.getPlayerView(roomData.roomId, player.socketId);
+        io.to(player.socketId).emit('game-state-update', playerView);
+      });
+    });
+    
+    // Disconnect handling
+    socket.on('disconnect', () => {
+      console.log(`Socket disconnected: ${socket.id}`);
+      
+      // Handle player leaving room on disconnect
+      const result = roomManager.leaveRoom(socket.id);
+      
+      // If room still exists, notify remaining players
+      if (!result.error && !result.roomDeleted && result.room) {
+        io.to(result.roomId).emit('player-left', {
+          socketId: socket.id,
+          room: result.room
+        });
+      }
+    });
+  });
+  
+  // Set up periodic cleanup of inactive rooms
+  setInterval(() => {
+    const cleanedCount = roomManager.cleanupInactiveRooms();
+    if (cleanedCount > 0) {
+      console.log(`Cleaned up ${cleanedCount} inactive rooms`);
+    }
+  }, 3600000); // Every hour
+}
+
+module.exports = {
+  initializeSocketHandlers
+};
