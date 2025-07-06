@@ -36,7 +36,7 @@ function createRoom(hostSocketId) {
     roomId,
     host: hostSocketId,
     players: [
-      { socketId: hostSocketId, isHost: true }
+      { socketId: hostSocketId, isHost: true, playerIndex: 0, deck: ['Sung-jin-woo', 'Mikasa', 'Luffy'] }
     ],
     gameState: 'waiting', // waiting, playing, finished
     maxPlayers: 2,
@@ -74,7 +74,7 @@ function joinRoom(roomId, socketId) {
   }
   
   // Add player to room
-  room.players.push({ socketId, isHost: false });
+  room.players.push({ socketId, isHost: false, playerIndex: 1, deck: ['Gojo', 'Natsu', 'Ichigo'] });
   activeRooms.set(roomId, room);
   
   return room;

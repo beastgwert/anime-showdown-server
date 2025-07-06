@@ -25,7 +25,8 @@ function initializeSocketHandlers(io) {
       // Notify client
       socket.emit('room-created', {
         roomId: room.roomId,
-        isHost: true
+        isHost: true,
+        playerIndex: 0
       });
       
       console.log(`Room created: ${room.roomId} by ${socket.id}`);
@@ -50,7 +51,8 @@ function initializeSocketHandlers(io) {
       // Notify client
       socket.emit('room-joined', {
         roomId,
-        isHost: false
+        isHost: false,
+        playerIndex: 1
       });
       
       // Notify all players in room

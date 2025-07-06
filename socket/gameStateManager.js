@@ -18,15 +18,11 @@ function initializeGameState(roomId, players) {
     roomId,
     players: players.map(player => ({
       socketId: player.socketId,
-      health: 100,
-      energy: 3,
-      hand: [], // Will be populated when game starts
-      board: [],
-      isCurrentTurn: player.isHost // Host goes first
+      deck: player.deck
     })),
     turn: 0,
     currentPlayerIndex: 0, // Host starts
-    gamePhase: 'setup', // setup, playing, ended
+    gamePhase: 'active', // setup, active, ended
     lastUpdated: Date.now()
   };
   
