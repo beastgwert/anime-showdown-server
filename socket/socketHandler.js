@@ -92,8 +92,8 @@ function initializeSocketHandlers(io) {
         return;
       }
       
-      // Update room state
-      const updatedRoom = roomManager.updateGameState(roomData.roomId, 'playing');
+      // Update room state to loadout selection phase
+      const updatedRoom = roomManager.updateGameState(roomData.roomId, 'loadout');
       
       // Initialize game state
       const gameState = gameStateManager.initializeGameState(roomData.roomId, updatedRoom.players);
@@ -105,6 +105,48 @@ function initializeSocketHandlers(io) {
       });
       
       console.log(`Game started in room ${roomData.roomId}`);
+    });
+    
+    // Confirm loadout
+    socket.on('confirm-loadout', (data) => {
+      const { loadout } = data;
+      
+      // Get room for this socket
+      const roomData = roomManager.getRoomBySocketId(socket.id);
+      
+      if (!roomData) {
+        socket.emit('room-error', { error: 'Not in a room' });
+        return;
+      }
+      
+      // Find player index in the room
+      const playerIndex = roomData.players.findIndex(player => player.socketId === socket.id);
+      
+      if (playerIndex === -1) {
+        socket.emit('room-error', { error: 'Player not found in room' });
+        return;
+      }
+      
+      // Update player's deck with the confirmed loadout
+      const updatedRoom = roomManager.updatePlayerDeck(roomData.roomId, socket.id, loadout);
+      
+      // Check if all players have confirmed their loadouts
+      const allConfirmed = updatedRoom.players.every(player => player.loadoutConfirmed);
+      
+      if (allConfirmed) {
+        // Update room state to playing
+        const playingRoom = roomManager.updateGameState(roomData.roomId, 'playing');
+        
+        // Update game state with confirmed decks
+        const updatedGameState = gameStateManager.updatePlayerDecks(roomData.roomId, playingRoom.players);
+        
+        // Notify all players that the playing phase has started
+        io.to(roomData.roomId).emit('playing-started', updatedGameState);
+        
+        console.log(`Playing started in room ${roomData.roomId}`);
+      }
+      
+      console.log(`Player ${socket.id} confirmed loadout in room ${roomData.roomId}`);
     });
     
     // Leave room

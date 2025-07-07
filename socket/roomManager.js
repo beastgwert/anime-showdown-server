@@ -143,6 +143,37 @@ function updateGameState(roomId, gameState) {
 }
 
 /**
+ * Updates a player's deck with their confirmed loadout
+ * @param {string} roomId - Room ID to update
+ * @param {string} socketId - Socket ID of the player
+ * @param {Array} deck - Array of character names for the deck
+ * @returns {Object} Updated room data
+ */
+function updatePlayerDeck(roomId, socketId, deck) {
+  if (!activeRooms.has(roomId)) {
+    return { error: 'Room not found' };
+  }
+  
+  const room = activeRooms.get(roomId);
+  
+  // Find the player in the room
+  const playerIndex = room.players.findIndex(player => player.socketId === socketId);
+  
+  if (playerIndex === -1) {
+    return { error: 'Player not found in room' };
+  }
+  
+  // Update the player's deck and mark as confirmed
+  room.players[playerIndex].deck = deck;
+  room.players[playerIndex].loadoutConfirmed = true;
+  
+  // Update room in storage
+  activeRooms.set(roomId, room);
+  
+  return room;
+}
+
+/**
  * Gets room data by room ID
  * @param {string} roomId - Room ID to retrieve
  * @returns {Object|null} Room data or null if not found
@@ -189,6 +220,7 @@ module.exports = {
   joinRoom,
   leaveRoom,
   updateGameState,
+  updatePlayerDeck,
   getRoomById,
   getRoomBySocketId,
   cleanupInactiveRooms

@@ -22,11 +22,42 @@ function initializeGameState(roomId, players) {
     })),
     turn: 0,
     currentPlayerIndex: 0, // Host starts
-    gamePhase: 'active', // setup, active, ended
+    gamePhase: 'loadout', // loadout, active, ended
     lastUpdated: Date.now()
   };
   
   // Store game state in memory
+  activeGameStates.set(roomId, gameState);
+  
+  return gameState;
+}
+
+/**
+ * Updates player decks in game state with confirmed loadouts
+ * @param {string} roomId - Room ID to update
+ * @param {Array} players - Array of players with confirmed decks
+ * @returns {Object} Updated game state
+ */
+function updatePlayerDecks(roomId, players) {
+  if (!activeGameStates.has(roomId)) {
+    return { error: 'Game not found' };
+  }
+  
+  const gameState = activeGameStates.get(roomId);
+  
+  // Update each player's deck in the game state
+  players.forEach(player => {
+    const playerIndex = gameState.players.findIndex(p => p.socketId === player.socketId);
+    if (playerIndex !== -1) {
+      gameState.players[playerIndex].deck = player.deck;
+    }
+  });
+  
+  // Update game phase to active
+  gameState.gamePhase = 'active';
+  gameState.lastUpdated = Date.now();
+  
+  // Store updated state
   activeGameStates.set(roomId, gameState);
   
   return gameState;
@@ -140,6 +171,7 @@ function getPlayerView(roomId, socketId) {
 
 module.exports = {
   initializeGameState,
+  updatePlayerDecks,
   processGameAction,
   getGameState,
   getPlayerView,
