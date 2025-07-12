@@ -200,11 +200,8 @@ function initializeSocketHandlers(io) {
         return;
       }
       
-      // Send personalized game state to each player
-      roomData.players.forEach(player => {
-        const playerView = gameStateManager.getPlayerView(roomData.roomId, player.socketId);
-        io.to(player.socketId).emit('game-state-update', playerView);
-      });
+      // Broadcast updated game state to all players in the room
+      io.to(roomData.roomId).emit('game-state-update', updatedState);
     });
     
     // Disconnect handling
