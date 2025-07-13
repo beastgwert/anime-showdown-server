@@ -239,6 +239,36 @@ function initializeSocketHandlers(io) {
       }
     });
     
+    // Game end handling
+    socket.on('game-end', (data) => {
+      // Get room for this socket
+      const roomData = roomManager.getRoomBySocketId(socket.id);
+      
+      if (!roomData) {
+        socket.emit('room-error', { error: 'Not in a room' });
+        return;
+      }
+      
+      console.log(`Game end requested by ${socket.id} in room ${roomData.roomId}`);
+      
+      // End the game and update game state
+      const result = gameStateManager.endGame(roomData.roomId, socket.id);
+      
+      if (result.error) {
+        socket.emit('game-error', { error: result.error });
+        return;
+      }
+      
+      // Broadcast game end to all players in the room
+      io.to(roomData.roomId).emit('end-game', {
+        gameState: result.gameState,
+        winner: result.winner,
+        loser: result.loser
+      });
+      
+      console.log(`Game ended in room ${roomData.roomId}. Winner: ${result.winner}, Loser: ${result.loser}`);
+    });
+    
     // Disconnect handling
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: ${socket.id}`);

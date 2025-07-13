@@ -238,18 +238,40 @@ function switchTurn(roomId) {
 /**
  * Ends a game and cleans up resources
  * @param {string} roomId - Room ID
- * @returns {boolean} Success status
+ * @param {string} loserSocketId - Socket ID of the player who lost (all cards dead)
+ * @returns {Object} Result with game state, winner, and loser info
  */
-function endGame(roomId) {
+function endGame(roomId, loserSocketId) {
   if (!activeGameStates.has(roomId)) {
-    return false;
+    return { error: 'Game state not found' };
   }
   
-  // Remove game state from memory
-  activeGameStates.delete(roomId);
+  const gameState = activeGameStates.get(roomId);
   
-  console.log(`Game ended for room: ${roomId}`);
-  return true;
+  // Find the loser and winner
+  const loserPlayer = gameState.players.find(player => player.socketId === loserSocketId);
+  const winnerPlayer = gameState.players.find(player => player.socketId !== loserSocketId);
+  
+  if (!loserPlayer || !winnerPlayer) {
+    return { error: 'Invalid player data' };
+  }
+  
+  // Update game state to ended
+  gameState.gamePhase = 'ended';
+  gameState.winner = winnerPlayer.socketId;
+  gameState.loser = loserPlayer.socketId;
+  gameState.lastUpdated = Date.now();
+  
+  // Keep game state for a short time for clients to process
+  // Will be cleaned up by periodic cleanup
+  
+  console.log(`Game ended for room: ${roomId}. Winner: ${winnerPlayer.socketId}, Loser: ${loserPlayer.socketId}`);
+  
+  return {
+    gameState,
+    winner: winnerPlayer.socketId,
+    loser: loserPlayer.socketId
+  };
 }
 
 module.exports = {
