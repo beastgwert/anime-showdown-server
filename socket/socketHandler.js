@@ -204,6 +204,41 @@ function initializeSocketHandlers(io) {
       io.to(roomData.roomId).emit('game-state-update', updatedState);
     });
     
+    // Game action finished (for turn switching)
+    socket.on('game-action-finished', (data) => {
+      // Get room for this socket
+      const roomData = roomManager.getRoomBySocketId(socket.id);
+      
+      if (!roomData) {
+        socket.emit('room-error', { error: 'Not in a room' });
+        return;
+      }
+      
+      // Mark this player as ready for turn switch
+      const result = gameStateManager.markPlayerActionFinished(
+        roomData.roomId,
+        socket.id
+      );
+      
+      if (result.error) {
+        socket.emit('game-error', { error: result.error });
+        return;
+      }
+      
+      // If both players are ready, switch turns
+      if (result.readyToSwitchTurn) {
+        const updatedState = gameStateManager.switchTurn(roomData.roomId);
+        
+        if (updatedState.error) {
+          socket.emit('game-error', { error: updatedState.error });
+          return;
+        }
+        
+        // Broadcast turn switch to all players in the room
+        io.to(roomData.roomId).emit('switch-turn', updatedState);
+      }
+    });
+    
     // Disconnect handling
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: ${socket.id}`);

@@ -140,17 +140,7 @@ function processGameAction(roomId, socketId, action) {
       console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} for ${damage} damage`);
       break;
       
-    case 'play-card':
-      // Logic for playing a card
-      // This would be expanded based on game rules
-      break;
-      
-    case 'end-turn':
-      // Switch turns to next player
-      const nextPlayerIndex = (playerIndex + 1) % gameState.players.length;
-      gameState.currentPlayerIndex = nextPlayerIndex;
-      gameState.turn++;
-      break;
+
       
     // Add more action types as needed
       
@@ -177,6 +167,75 @@ function getGameState(roomId) {
 }
 
 /**
+ * Marks a player as finished with their action (for turn switching)
+ * @param {string} roomId - Room ID
+ * @param {string} socketId - Socket ID of player who finished
+ * @returns {Object} Result with readyToSwitchTurn flag
+ */
+function markPlayerActionFinished(roomId, socketId) {
+  if (!activeGameStates.has(roomId)) {
+    return { error: 'Game not found' };
+  }
+  
+  const gameState = activeGameStates.get(roomId);
+  
+  // Initialize actionFinished tracking if not exists
+  if (!gameState.actionFinished) {
+    gameState.actionFinished = new Set();
+  }
+  
+  // Mark this player as finished
+  gameState.actionFinished.add(socketId);
+  
+  console.log(`Player ${socketId} finished action. Players finished: ${gameState.actionFinished.size}/${gameState.players.length}`);
+  
+  // Check if all players are ready to switch turns
+  const readyToSwitchTurn = gameState.actionFinished.size >= gameState.players.length;
+  
+  return { readyToSwitchTurn };
+}
+
+/**
+ * Switches turn to next player and resets action states
+ * @param {string} roomId - Room ID
+ * @returns {Object} Updated game state
+ */
+function switchTurn(roomId) {
+  if (!activeGameStates.has(roomId)) {
+    return { error: 'Game not found' };
+  }
+  
+  const gameState = activeGameStates.get(roomId);
+  
+  // Switch to next player
+  const nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+  gameState.currentPlayerIndex = nextPlayerIndex;
+  gameState.turn++;
+  
+  // Reset attack state
+  gameState.isAttacking = false;
+  gameState.attackingPlayer = undefined;
+  gameState.attackingCardIndex = undefined;
+  gameState.targetPlayer = undefined;
+  gameState.targetCardIndex = undefined;
+  gameState.specialAbility = undefined;
+  gameState.damageDealt = undefined;
+  
+  // Clear action finished tracking
+  gameState.actionFinished = new Set();
+  
+  // Update timestamp
+  gameState.lastUpdated = Date.now();
+  
+  // Store updated state
+  activeGameStates.set(roomId, gameState);
+  
+  console.log(`Turn switched to player ${nextPlayerIndex} (turn ${gameState.turn})`);
+  
+  return gameState;
+}
+
+/**
  * Ends a game and cleans up resources
  * @param {string} roomId - Room ID
  * @returns {boolean} Success status
@@ -186,17 +245,19 @@ function endGame(roomId) {
     return false;
   }
   
-  // Clean up game state
+  // Remove game state from memory
   activeGameStates.delete(roomId);
+  
+  console.log(`Game ended for room: ${roomId}`);
   return true;
 }
-
-
 
 module.exports = {
   initializeGameState,
   updatePlayerDecks,
   processGameAction,
   getGameState,
+  markPlayerActionFinished,
+  switchTurn,
   endGame
 };
