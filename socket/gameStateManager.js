@@ -3,7 +3,7 @@
  * Handles game state synchronization between players
  */
 
-// Character info for damage calculations
+// Character info for damage calculations and passive abilities
 const characterInfo = {
   abilityDamages: {
     'Sung-jin-woo': [160, 200],
@@ -17,6 +17,28 @@ const characterInfo = {
     'Mudkip': [90, 130],
     'Genos': [200, 210],
     'Makima': [95, 135],
+  },
+  passiveAbilities: {
+    'Gojo': {
+      type: 'dodge',
+      value: 0.15, // 15% dodge chance for all team cards
+      description: 'Grants 15% dodge chance to all team cards'
+    },
+    'Kakashi': {
+      type: 'crit',
+      value: 0.25, // 25% crit chance for all team cards
+      multiplier: 1.5, // 1.5x damage on crit
+      description: 'Grants 25% crit chance with 1.5x damage to all team cards'
+    },
+    'Anya': {
+      type: 'damage_reduction',
+      value: 0.20, // 20% damage reduction for all team cards
+      description: 'Reduces all incoming damage by 20% for all team cards'
+    },
+    'Makima': {
+      type: 'damage_distribution',
+      description: 'Distributes incoming damage equally among all alive team cards'
+    }
   }
 };
 
@@ -126,18 +148,65 @@ function processGameAction(roomId, socketId, action) {
       
       const minDamage = damageRange[0];
       const maxDamage = damageRange[1];
-      const damage = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
+      let damage = Math.floor(Math.random() * (maxDamage - minDamage + 1)) + minDamage;
+      
+      // Check for passive abilities on attacking team
+      const attackingTeam = gameState.players[playerIndex].deck;
+      let criticalHit = false;
+      
+      // Check if attacking team has Kakashi (crit passive)
+      if (attackingTeam.includes('Kakashi')) {
+        const critChance = characterInfo.passiveAbilities['Kakashi'].value;
+        if (Math.random() < critChance) {
+          criticalHit = true;
+          const critMultiplier = characterInfo.passiveAbilities['Kakashi'].multiplier;
+          damage = Math.floor(damage * critMultiplier);
+          console.log(`Critical hit! Kakashi's passive ability activated (${critChance * 100}% chance, ${critMultiplier}x damage)`);
+        }
+      }
+      
+      // Check for passive abilities on defending team
+      const targetPlayerIndex = playerIndex === 0 ? 1 : 0;
+      const defendingTeam = gameState.players[targetPlayerIndex].deck;
+      let attackDodged = false;
+      
+      // Check if defending team has Gojo (dodge passive)
+      if (defendingTeam.includes('Gojo')) {
+        const dodgeChance = characterInfo.passiveAbilities['Gojo'].value;
+        if (Math.random() < dodgeChance) {
+          attackDodged = true;
+          damage = 0;
+          console.log(`Attack dodged! Gojo's passive ability activated (${dodgeChance * 100}% chance)`);
+        }
+      }
+      
+      // Check if defending team has Anya (damage reduction passive)
+      // Only apply if attack wasn't dodged
+      if (!attackDodged && defendingTeam.includes('Anya')) {
+        const damageReduction = characterInfo.passiveAbilities['Anya'].value;
+        const originalDamage = damage;
+        damage = Math.floor(damage * (1 - damageReduction));
+        console.log(`Damage reduced! Anya's passive ability activated (${damageReduction * 100}% reduction: ${originalDamage} → ${damage})`);
+      }
       
       // Set attack state in game
       gameState.isAttacking = true;
       gameState.attackingPlayer = playerIndex;
       gameState.attackingCardIndex = attackingCardIndex;
-      gameState.targetPlayer = playerIndex === 0 ? 1 : 0;
+      gameState.targetPlayer = targetPlayerIndex;
       gameState.targetCardIndex = targetCardIndex;
       gameState.specialAbility = specialAbility;
       gameState.damageDealt = damage;
+      gameState.attackDodged = attackDodged;
+      gameState.criticalHit = criticalHit;
       
-      console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} for ${damage} damage`);
+      if (attackDodged) {
+        console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} - ATTACK DODGED!`);
+      } else if (criticalHit) {
+        console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} for ${damage} damage - CRITICAL HIT!`);
+      } else {
+        console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} for ${damage} damage`);
+      }
       break;
       
 
@@ -220,6 +289,8 @@ function switchTurn(roomId) {
   gameState.targetCardIndex = undefined;
   gameState.specialAbility = undefined;
   gameState.damageDealt = undefined;
+  gameState.attackDodged = undefined;
+  gameState.criticalHit = undefined;
   
   // Clear action finished tracking
   gameState.actionFinished = new Set();
