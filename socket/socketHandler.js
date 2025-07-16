@@ -200,8 +200,18 @@ function initializeSocketHandlers(io) {
         return;
       }
       
-      // Broadcast updated game state to all players in the room
+
       io.to(roomData.roomId).emit('game-state-update', updatedState);
+      
+      if (action.type === 'special_ability') {
+        const switchedState = gameStateManager.switchTurn(roomData.roomId);
+
+        if (switchedState.error) {
+          socket.emit('game-error', { error: switchedState.error });
+          return;
+        }
+        io.to(roomData.roomId).emit('switch-turn', switchedState);
+      }
     });
     
     // Game action finished (for turn switching)

@@ -39,6 +39,13 @@ const characterInfo = {
       type: 'damage_distribution',
       description: 'Distributes incoming damage equally among all alive team cards'
     }
+  },
+  specialAbilities: {
+    'Sung-jin-woo': {
+      type: 'heal_all',
+      value: 0.15, // 15% of max HP
+      description: 'Heals all ally cards by 15% of their max HP'
+    }
   }
 };
 
@@ -130,7 +137,7 @@ function processGameAction(roomId, socketId, action) {
   switch (action.type) {
     case 'attack':
       // Handle attack action
-      const { attackingCardIndex, targetCardIndex, specialAbility } = action;
+      const { attackingCardIndex, targetCardIndex, specialAbility: isSpecialAttack } = action;
       
       // Validate indices
       if (attackingCardIndex < 0 || attackingCardIndex >= 3 || targetCardIndex < 0 || targetCardIndex >= 3) {
@@ -195,7 +202,7 @@ function processGameAction(roomId, socketId, action) {
       gameState.attackingCardIndex = attackingCardIndex;
       gameState.targetPlayer = targetPlayerIndex;
       gameState.targetCardIndex = targetCardIndex;
-      gameState.specialAbility = specialAbility;
+      gameState.specialAbility = isSpecialAttack;
       gameState.damageDealt = damage;
       gameState.attackDodged = attackDodged;
       gameState.criticalHit = criticalHit;
@@ -209,18 +216,42 @@ function processGameAction(roomId, socketId, action) {
       }
       break;
       
-
+    case 'special_ability':
+      const { attackingCardIndex: abilityCardIndex } = action;
       
-    // Add more action types as needed
+      if (abilityCardIndex < 0 || abilityCardIndex >= 3) {
+        return { error: 'Invalid card index' };
+      }
+      
+      const abilityCard = gameState.players[playerIndex].deck[abilityCardIndex];
+      const abilityData = characterInfo.specialAbilities[abilityCard];
+      if (!abilityData) {
+        return { error: 'Character has no special ability' };
+      }
+      
+      switch (abilityData.type) {
+        case 'heal_all':
+          const healAmount = abilityData.value;
+          
+          gameState.isSpecialAbility = true;
+          gameState.specialAbilityUser = playerIndex;
+          gameState.specialAbilityCard = abilityCardIndex;
+          gameState.specialAbilityType = 'heal_all';
+          gameState.healAmount = healAmount;
+          
+          console.log(`Player ${playerIndex} uses ${abilityCard}'s special ability: Shadow Regeneration (heals all allies by ${healAmount * 100}% max HP)`);
+          break;
+          
+        default:
+          return { error: 'Unknown special ability type' };
+      }
+      break;
       
     default:
       return { error: 'Unknown action type' };
   }
   
-  // Update timestamp
   gameState.lastUpdated = Date.now();
-  
-  // Store updated state
   activeGameStates.set(roomId, gameState);
   
   return gameState;
@@ -291,6 +322,13 @@ function switchTurn(roomId) {
   gameState.damageDealt = undefined;
   gameState.attackDodged = undefined;
   gameState.criticalHit = undefined;
+  
+  // Reset special ability state
+  gameState.isSpecialAbility = false;
+  gameState.specialAbilityUser = undefined;
+  gameState.specialAbilityCard = undefined;
+  gameState.specialAbilityType = undefined;
+  gameState.healAmount = undefined;
   
   // Clear action finished tracking
   gameState.actionFinished = new Set();
