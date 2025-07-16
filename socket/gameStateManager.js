@@ -1,55 +1,4 @@
-/**
- * Game State Manager for Multiplayer Anime Card Game
- * Handles game state synchronization between players
- */
-
-// Character info for damage calculations and passive abilities
-const characterInfo = {
-  abilityDamages: {
-    'Sung-jin-woo': [160, 200],
-    'Mikasa': [80, 120],
-    'Luffy': [110, 130],
-    'Gojo': [100, 200],
-    'Natsu': [120, 130],
-    'Ichigo': [0, 10],
-    'Kakashi': [150, 200],
-    'Anya': [125, 175],
-    'Mudkip': [90, 130],
-    'Genos': [200, 210],
-    'Makima': [95, 135],
-  },
-  passiveAbilities: {
-    'Gojo': {
-      type: 'dodge',
-      value: 0.15, // 15% dodge chance for all team cards
-      description: 'Grants 15% dodge chance to all team cards'
-    },
-    'Kakashi': {
-      type: 'crit',
-      value: 0.25, // 25% crit chance for all team cards
-      multiplier: 1.5, // 1.5x damage on crit
-      description: 'Grants 25% crit chance with 1.5x damage to all team cards'
-    },
-    'Anya': {
-      type: 'damage_reduction',
-      value: 0.20, // 20% damage reduction for all team cards
-      description: 'Reduces all incoming damage by 20% for all team cards'
-    },
-    'Makima': {
-      type: 'damage_distribution',
-      description: 'Distributes incoming damage equally among all alive team cards'
-    }
-  },
-  specialAbilities: {
-    'Sung-jin-woo': {
-      type: 'heal_all',
-      value: 0.15, // 15% of max HP
-      description: 'Heals all ally cards by 15% of their max HP'
-    }
-  }
-};
-
-// In-memory storage for active game states
+const characterInfo = require('../data/characterInfo');
 const activeGameStates = new Map();
 
 /**
@@ -64,7 +13,8 @@ function initializeGameState(roomId, players) {
     roomId,
     players: players.map(player => ({
       socketId: player.socketId,
-      deck: player.deck
+      deck: player.deck,
+      hp: player.deck.map(cardName => characterInfo.maxHP[cardName] || 1000)
     })),
     turn: 0,
     currentPlayerIndex: 0, // Host starts
@@ -96,6 +46,7 @@ function updatePlayerDecks(roomId, players) {
     const playerIndex = gameState.players.findIndex(p => p.socketId === player.socketId);
     if (playerIndex !== -1) {
       gameState.players[playerIndex].deck = player.deck;
+      gameState.players[playerIndex].hp = player.deck.map(cardName => characterInfo.maxHP[cardName] || 1000);
     }
   });
   
@@ -207,6 +158,35 @@ function processGameAction(roomId, socketId, action) {
       gameState.attackDodged = attackDodged;
       gameState.criticalHit = criticalHit;
       
+      // Apply damage to HP if not dodged
+      if (!attackDodged && damage > 0) {
+        // Check if defending team has Makima (damage distribution)
+        if (defendingTeam.includes('Makima')) {
+          // Distribute damage among all alive cards
+          const aliveCardIndices = [];
+          for (let i = 0; i < gameState.players[targetPlayerIndex].hp.length; i++) {
+            if (gameState.players[targetPlayerIndex].hp[i] > 0) {
+              aliveCardIndices.push(i);
+            }
+          }
+          
+          if (aliveCardIndices.length > 0) {
+            const distributedDamage = Math.floor(damage / aliveCardIndices.length);
+            const remainderDamage = damage % aliveCardIndices.length;
+            
+            aliveCardIndices.forEach((cardIndex, i) => {
+              const damageToApply = distributedDamage + (i < remainderDamage ? 1 : 0);
+              gameState.players[targetPlayerIndex].hp[cardIndex] = Math.max(0, gameState.players[targetPlayerIndex].hp[cardIndex] - damageToApply);
+            });
+            
+            console.log(`Makima's damage distribution: ${damage} damage distributed among ${aliveCardIndices.length} alive cards`);
+          }
+        } else {
+          // Apply damage to single target
+          gameState.players[targetPlayerIndex].hp[targetCardIndex] = Math.max(0, gameState.players[targetPlayerIndex].hp[targetCardIndex] - damage);
+        }
+      }
+      
       if (attackDodged) {
         console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} - ATTACK DODGED!`);
       } else if (criticalHit) {
@@ -233,6 +213,18 @@ function processGameAction(roomId, socketId, action) {
         case 'heal_all':
           const healAmount = abilityData.value;
           
+          // Apply healing to all alive cards on the player's team
+          for (let i = 0; i < gameState.players[playerIndex].hp.length; i++) {
+            if (gameState.players[playerIndex].hp[i] > 0) {
+              const maxHP = characterInfo.maxHP[gameState.players[playerIndex].deck[i]];
+              const healValue = Math.floor(maxHP * healAmount);
+              const newHP = Math.min(gameState.players[playerIndex].hp[i] + healValue, maxHP);
+              
+              console.log(`Card ${i} (${gameState.players[playerIndex].deck[i]}) healed from ${gameState.players[playerIndex].hp[i]} to ${newHP} (+${healValue} HP, ${healAmount * 100}% of ${maxHP} max HP)`);
+              gameState.players[playerIndex].hp[i] = newHP;
+            }
+          }
+          
           gameState.isSpecialAbility = true;
           gameState.specialAbilityUser = playerIndex;
           gameState.specialAbilityCard = abilityCardIndex;
@@ -251,10 +243,54 @@ function processGameAction(roomId, socketId, action) {
       return { error: 'Unknown action type' };
   }
   
+  // Check for game end conditions after HP modifications
+  const gameEndResult = checkGameEndConditions(roomId);
+  if (gameEndResult.gameEnded) {
+    return gameEndResult.gameState;
+  }
+  
   gameState.lastUpdated = Date.now();
   activeGameStates.set(roomId, gameState);
   
   return gameState;
+}
+
+/**
+ * Checks if game should end based on HP conditions
+ * @param {string} roomId - Room ID
+ * @returns {Object} Result with gameEnded flag and gameState if ended
+ */
+function checkGameEndConditions(roomId) {
+  if (!activeGameStates.has(roomId)) {
+    return { gameEnded: false, error: 'Game not found' };
+  }
+  
+  const gameState = activeGameStates.get(roomId);
+  
+  // Check each player's HP to see if all cards are dead
+  for (let playerIndex = 0; playerIndex < gameState.players.length; playerIndex++) {
+    const playerHP = gameState.players[playerIndex].hp;
+    const allCardsDead = playerHP.every(hp => hp <= 0);
+    
+    if (allCardsDead) {
+      // Game ends - this player loses
+      const loserIndex = playerIndex;
+      const winnerIndex = playerIndex === 0 ? 1 : 0;
+      
+      gameState.gamePhase = 'ended';
+      gameState.winner = gameState.players[winnerIndex].socketId;
+      gameState.loser = gameState.players[loserIndex].socketId;
+      gameState.lastUpdated = Date.now();
+      
+      activeGameStates.set(roomId, gameState);
+      
+      console.log(`Game ended in room ${roomId}. Winner: ${gameState.winner}, Loser: ${gameState.loser}`);
+      
+      return { gameEnded: true, gameState };
+    }
+  }
+  
+  return { gameEnded: false };
 }
 
 /**
@@ -388,6 +424,7 @@ module.exports = {
   updatePlayerDecks,
   processGameAction,
   getGameState,
+  checkGameEndConditions,
   markPlayerActionFinished,
   switchTurn,
   endGame

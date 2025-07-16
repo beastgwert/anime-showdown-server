@@ -154,7 +154,6 @@ function initializeSocketHandlers(io) {
       const result = roomManager.leaveRoom(socket.id);
       
       if (result.error) {
-        socket.emit('room-error', { error: result.error });
         return;
       }
       
