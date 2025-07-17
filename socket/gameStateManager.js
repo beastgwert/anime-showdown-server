@@ -19,6 +19,7 @@ function initializeGameState(roomId, players) {
     turn: 0,
     currentPlayerIndex: 0, // Host starts
     gamePhase: 'loadout', // loadout, active, ended
+    accuracyDebuffs: [0, 0], // Track accuracy debuff turns remaining for each player
     lastUpdated: Date.now()
   };
   
@@ -52,6 +53,7 @@ function updatePlayerDecks(roomId, players) {
   
   // Update game phase to active
   gameState.gamePhase = 'active';
+  gameState.accuracyDebuffs = [0, 0]; // Initialize accuracy debuff tracking
   gameState.lastUpdated = Date.now();
   
   // Store updated state
@@ -110,10 +112,12 @@ function processGameAction(roomId, socketId, action) {
       
       // Check for passive abilities on attacking team
       const attackingTeam = gameState.players[playerIndex].deck;
+      const attackingTeamHP = gameState.players[playerIndex].hp;
       let criticalHit = false;
       
-      // Check if attacking team has Kakashi (crit passive)
-      if (attackingTeam.includes('Kakashi')) {
+      // Check if attacking team has Kakashi (crit passive) and Kakashi is alive
+      const kakashiIndex = attackingTeam.indexOf('Kakashi');
+      if (kakashiIndex !== -1 && attackingTeamHP[kakashiIndex] > 0) {
         const critChance = characterInfo.passiveAbilities['Kakashi'].value;
         if (Math.random() < critChance) {
           criticalHit = true;
@@ -126,25 +130,48 @@ function processGameAction(roomId, socketId, action) {
       // Check for passive abilities on defending team
       const targetPlayerIndex = playerIndex === 0 ? 1 : 0;
       const defendingTeam = gameState.players[targetPlayerIndex].deck;
+      const defendingTeamHP = gameState.players[targetPlayerIndex].hp;
       let attackDodged = false;
       
-      // Check if defending team has Gojo (dodge passive)
-      if (defendingTeam.includes('Gojo')) {
-        const dodgeChance = characterInfo.passiveAbilities['Gojo'].value;
-        if (Math.random() < dodgeChance) {
-          attackDodged = true;
-          damage = 0;
-          console.log(`Attack dodged! Gojo's passive ability activated (${dodgeChance * 100}% chance)`);
-        }
+      // Check if defending team has Gojo (dodge passive) and Gojo is alive
+      let totalDodgeChance = 0;
+      const gojoIndex = defendingTeam.indexOf('Gojo');
+      if (gojoIndex !== -1 && defendingTeamHP[gojoIndex] > 0) {
+        totalDodgeChance += characterInfo.passiveAbilities['Gojo'].value;
       }
       
-      // Check if defending team has Anya (damage reduction passive)
+      // Add accuracy debuff if attacking player is affected by Mudkip's ability
+      if (gameState.accuracyDebuffs[playerIndex] > 0) {
+        const mudkipDebuff = characterInfo.specialAbilities['Mudkip'].value;
+        totalDodgeChance += mudkipDebuff;
+        console.log(`Mudkip's accuracy debuff active! Adding ${mudkipDebuff * 100}% miss chance (${gameState.accuracyDebuffs[playerIndex]} turns remaining)`);
+      }
+      
+      if (totalDodgeChance > 0 && Math.random() < totalDodgeChance) {
+        attackDodged = true;
+        damage = 0;
+      }
+      
+      // Check if defending team has Anya (damage reduction passive) and Anya is alive
       // Only apply if attack wasn't dodged
-      if (!attackDodged && defendingTeam.includes('Anya')) {
+      const anyaIndex = defendingTeam.indexOf('Anya');
+      if (!attackDodged && anyaIndex !== -1 && defendingTeamHP[anyaIndex] > 0) {
         const damageReduction = characterInfo.passiveAbilities['Anya'].value;
         const originalDamage = damage;
         damage = Math.floor(damage * (1 - damageReduction));
         console.log(`Damage reduced! Anya's passive ability activated (${damageReduction * 100}% reduction: ${originalDamage} → ${damage})`);
+      }
+      
+      // Check if attacking team has Mikasa (paralysis passive) and Mikasa is alive
+      // Only apply if attack wasn't dodged
+      let enemyParalyzed = false;
+      const mikasaIndex = attackingTeam.indexOf('Mikasa');
+      if (!attackDodged && mikasaIndex !== -1 && attackingTeamHP[mikasaIndex] > 0) {
+        const paralysisChance = characterInfo.passiveAbilities['Mikasa'].value;
+        if (Math.random() < paralysisChance) {
+          enemyParalyzed = true;
+          console.log(`Enemy paralyzed! Mikasa's passive ability activated (${paralysisChance * 100}% chance)`);
+        }
       }
       
       // Set attack state in game
@@ -157,11 +184,13 @@ function processGameAction(roomId, socketId, action) {
       gameState.damageDealt = damage;
       gameState.attackDodged = attackDodged;
       gameState.criticalHit = criticalHit;
+      gameState.enemyParalyzed = enemyParalyzed;
       
       // Apply damage to HP if not dodged
       if (!attackDodged && damage > 0) {
-        // Check if defending team has Makima (damage distribution)
-        if (defendingTeam.includes('Makima')) {
+        // Check if defending team has Makima (damage distribution) and Makima is alive
+        const makimaIndex = defendingTeam.indexOf('Makima');
+        if (makimaIndex !== -1 && defendingTeamHP[makimaIndex] > 0) {
           // Distribute damage among all alive cards
           const aliveCardIndices = [];
           for (let i = 0; i < gameState.players[targetPlayerIndex].hp.length; i++) {
@@ -189,8 +218,12 @@ function processGameAction(roomId, socketId, action) {
       
       if (attackDodged) {
         console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} - ATTACK DODGED!`);
+      } else if (criticalHit && enemyParalyzed) {
+        console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} for ${damage} damage - CRITICAL HIT! ENEMY PARALYZED!`);
       } else if (criticalHit) {
         console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} for ${damage} damage - CRITICAL HIT!`);
+      } else if (enemyParalyzed) {
+        console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} for ${damage} damage - ENEMY PARALYZED!`);
       } else {
         console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} for ${damage} damage`);
       }
@@ -232,6 +265,57 @@ function processGameAction(roomId, socketId, action) {
           gameState.healAmount = healAmount;
           
           console.log(`Player ${playerIndex} uses ${abilityCard}'s special ability: Shadow Regeneration (heals all allies by ${healAmount * 100}% max HP)`);
+          break;
+          
+        case 'sacrifice_blast':
+          const genosMaxHP = characterInfo.maxHP[abilityCard];
+          const genosCurrentHP = gameState.players[playerIndex].hp[abilityCardIndex];
+          const hpLost = genosMaxHP - genosCurrentHP;
+          const blastDamage = Math.floor(hpLost * abilityData.value);
+          
+          const opponentIndex = playerIndex === 0 ? 1 : 0;
+          const aliveEnemyIndices = [];
+          for (let i = 0; i < gameState.players[opponentIndex].hp.length; i++) {
+            if (gameState.players[opponentIndex].hp[i] > 0) {
+              aliveEnemyIndices.push(i);
+            }
+          }
+          
+          let targetCardIndex = -1;
+          let targetCard = null;
+          
+          if (aliveEnemyIndices.length > 0) {
+            targetCardIndex = aliveEnemyIndices[Math.floor(Math.random() * aliveEnemyIndices.length)];
+            targetCard = gameState.players[opponentIndex].deck[targetCardIndex];
+            
+            const oldHP = gameState.players[opponentIndex].hp[targetCardIndex];
+            gameState.players[opponentIndex].hp[targetCardIndex] = Math.max(0, oldHP - blastDamage);
+            
+            console.log(`${abilityCard} deals ${blastDamage} blast damage to ${targetCard} (${oldHP} -> ${gameState.players[opponentIndex].hp[targetCardIndex]} HP)`);
+          }
+          
+          gameState.players[playerIndex].hp[abilityCardIndex] = 0;
+          gameState.isSpecialAbility = true;
+          gameState.specialAbilityUser = playerIndex;
+          gameState.specialAbilityCard = abilityCardIndex;
+          gameState.specialAbilityType = 'sacrifice_blast';
+          gameState.blastDamage = blastDamage;
+          gameState.targetPlayer = opponentIndex;
+          gameState.targetCardIndex = targetCardIndex;
+          gameState.hpLost = hpLost;
+          
+          console.log(`Player ${playerIndex} uses ${abilityCard}'s special ability: Sacrifice Blast (${hpLost} HP lost -> ${blastDamage} damage to random enemy, Genos dies)`);
+          break;
+          
+        case 'accuracy_debuff':
+          const opponentPlayerIndex = playerIndex === 0 ? 1 : 0;
+          const debuffDuration = abilityData.duration;
+          const debuffValue = abilityData.value;
+          
+          // Apply accuracy debuff to opponent
+          gameState.accuracyDebuffs[opponentPlayerIndex] = debuffDuration;
+          
+          console.log(`Player ${playerIndex} uses ${abilityCard}'s special ability: Accuracy Debuff (reduces opponent accuracy by ${debuffValue * 100}% for ${debuffDuration} turns)`);
           break;
           
         default:
@@ -358,6 +442,7 @@ function switchTurn(roomId) {
   gameState.damageDealt = undefined;
   gameState.attackDodged = undefined;
   gameState.criticalHit = undefined;
+  gameState.enemyParalyzed = undefined;
   
   // Reset special ability state
   gameState.isSpecialAbility = false;
@@ -365,6 +450,19 @@ function switchTurn(roomId) {
   gameState.specialAbilityCard = undefined;
   gameState.specialAbilityType = undefined;
   gameState.healAmount = undefined;
+  gameState.blastDamage = undefined;
+  gameState.hpLost = undefined;
+  gameState.accuracyDebuffTarget = undefined;
+  gameState.accuracyDebuffValue = undefined;
+  gameState.accuracyDebuffDuration = undefined;
+  
+  // Decrement accuracy debuff counters
+  for (let i = 0; i < gameState.accuracyDebuffs.length; i++) {
+    if (gameState.accuracyDebuffs[i] > 0) {
+      gameState.accuracyDebuffs[i]--;
+      console.log(`Player ${i} accuracy debuff decremented to ${gameState.accuracyDebuffs[i]} turns remaining`);
+    }
+  }
   
   // Clear action finished tracking
   gameState.actionFinished = new Set();
@@ -419,6 +517,47 @@ function endGame(roomId, loserSocketId) {
   };
 }
 
+/**
+ * Resets attack state without switching turns (used for paralysis)
+ * @param {string} roomId - Room ID
+ * @returns {Object} Updated game state
+ */
+function resetAttackState(roomId) {
+  if (!activeGameStates.has(roomId)) {
+    return { error: 'Game not found' };
+  }
+  
+  const gameState = activeGameStates.get(roomId);
+  gameState.isAttacking = false;
+  gameState.attackingPlayer = undefined;
+  gameState.attackingCardIndex = undefined;
+  gameState.targetPlayer = undefined;
+  gameState.targetCardIndex = undefined;
+  gameState.specialAbility = undefined;
+  gameState.damageDealt = undefined;
+  gameState.attackDodged = undefined;
+  gameState.criticalHit = undefined;
+  gameState.enemyParalyzed = undefined;
+  
+  gameState.isSpecialAbility = false;
+  gameState.specialAbilityUser = undefined;
+  gameState.specialAbilityCard = undefined;
+  gameState.specialAbilityType = undefined;
+  gameState.healAmount = undefined;
+  gameState.blastDamage = undefined;
+  gameState.hpLost = undefined;
+  gameState.accuracyDebuffTarget = undefined;
+  gameState.accuracyDebuffValue = undefined;
+  gameState.accuracyDebuffDuration = undefined;
+  
+  gameState.actionFinished = new Set();
+  gameState.lastUpdated = Date.now();
+  activeGameStates.set(roomId, gameState);
+  console.log(`Attack state reset for paralysis - player ${gameState.currentPlayerIndex} gets another turn`);
+  
+  return gameState;
+}
+
 module.exports = {
   initializeGameState,
   updatePlayerDecks,
@@ -427,5 +566,6 @@ module.exports = {
   checkGameEndConditions,
   markPlayerActionFinished,
   switchTurn,
+  resetAttackState,
   endGame
 };

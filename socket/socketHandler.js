@@ -234,17 +234,34 @@ function initializeSocketHandlers(io) {
         return;
       }
       
-      // If both players are ready, switch turns
+      // If both players are ready, check for paralysis before switching turns
       if (result.readyToSwitchTurn) {
-        const updatedState = gameStateManager.switchTurn(roomData.roomId);
+        // Get current game state to check for paralysis
+        const currentState = gameStateManager.getGameState(roomData.roomId);
         
-        if (updatedState.error) {
-          socket.emit('game-error', { error: updatedState.error });
-          return;
+        if (currentState && currentState.enemyParalyzed) {
+          // Enemy is paralyzed - don't switch turns, just reset attack state and let same player attack again
+          const resetState = gameStateManager.resetAttackState(roomData.roomId);
+          
+          if (resetState.error) {
+            socket.emit('game-error', { error: resetState.error });
+            return;
+          }
+          
+          // Broadcast paralysis state (no turn switch)
+          io.to(roomData.roomId).emit('paralysis-skip-turn', resetState);
+        } else {
+          // Normal turn switch
+          const updatedState = gameStateManager.switchTurn(roomData.roomId);
+          
+          if (updatedState.error) {
+            socket.emit('game-error', { error: updatedState.error });
+            return;
+          }
+          
+          // Broadcast turn switch to all players in the room
+          io.to(roomData.roomId).emit('switch-turn', updatedState);
         }
-        
-        // Broadcast turn switch to all players in the room
-        io.to(roomData.roomId).emit('switch-turn', updatedState);
       }
     });
     

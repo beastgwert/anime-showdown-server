@@ -45,6 +45,11 @@ const characterInfo = {
     'Makima': {
       type: 'damage_distribution',
       description: 'Distributes incoming damage equally among all alive team cards'
+    },
+    'Mikasa': {
+      type: 'paralysis',
+      value: 0.15, // 15% chance to paralyze enemy on attack
+      description: 'Grants 15% chance to paralyze enemy on attack for all team cards'
     }
   },
   specialAbilities: {
@@ -52,6 +57,17 @@ const characterInfo = {
       type: 'heal_all',
       value: 0.15, // 15% of max HP
       description: 'Heals all ally cards by 15% of their max HP'
+    },
+    'Genos': {
+      type: 'sacrifice_blast',
+      value: 0.75, // 75% of HP lost
+      description: 'Deals 75% of HP lost to a random enemy, then dies'
+    },
+    'Mudkip': {
+      type: 'accuracy_debuff',
+      value: 0.50, // 50% accuracy reduction
+      duration: 4, // 2 turns
+      description: 'Reduces opponent accuracy by 50% for 2 turns (stacks with Gojo passive)'
     }
   }
 };
