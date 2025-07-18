@@ -11,6 +11,7 @@ const characterInfo = {
     'Mudkip': [90, 130],
     'Genos': [100, 120],
     'Makima': [95, 135],
+    'Saitama': [99999, 99999]
   },
   maxHP: {
     'Sung-jin-woo': 500,
@@ -24,6 +25,7 @@ const characterInfo = {
     'Mudkip': 350,
     'Genos': 550,
     'Makima': 425,
+    'Saitama': 1
   },
   passiveAbilities: {
     'Gojo': {
