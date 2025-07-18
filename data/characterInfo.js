@@ -9,7 +9,7 @@ const characterInfo = {
     'Kakashi': [150, 200],
     'Anya': [125, 175],
     'Mudkip': [90, 130],
-    'Genos': [200, 210],
+    'Genos': [100, 120],
     'Makima': [95, 135],
   },
   maxHP: {
@@ -50,6 +50,12 @@ const characterInfo = {
       type: 'paralysis',
       value: 0.15, // 15% chance to paralyze enemy on attack
       description: 'Grants 15% chance to paralyze enemy on attack for all team cards'
+    },
+    'Natsu': {
+      type: 'burn',
+      value: 0.50, // 50% chance to burn enemy on attack
+      burnDamage: 50, // Burn damage per card
+      description: 'Grants 50% chance to burn enemy on attack, causing burn damage next turn'
     }
   },
   specialAbilities: {
@@ -60,8 +66,8 @@ const characterInfo = {
     },
     'Genos': {
       type: 'sacrifice_blast',
-      value: 0.75, // 75% of HP lost
-      description: 'Deals 75% of HP lost to a random enemy, then dies'
+      value: 0.50, // 50% of HP lost
+      description: 'Deals 50% of HP lost to a random enemy, then dies'
     },
     'Mudkip': {
       type: 'accuracy_debuff',
