@@ -17,7 +17,7 @@ function initializeGameState(roomId, players) {
       hp: player.deck.map(cardName => characterInfo.maxHP[cardName] || 1000)
     })),
     turn: 0,
-    currentPlayerIndex: 0, // Host starts
+    currentPlayerIndex: Math.floor(Math.random() * 2), // Randomly choose starting player (0 or 1)
     gamePhase: 'loadout', // loadout, active, ended
     accuracyDebuffs: [0, 0], // Track accuracy debuff turns remaining for each player
     damageBuffs: [0, 0], // Track damage buff turns remaining for each player
