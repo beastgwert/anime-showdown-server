@@ -20,6 +20,7 @@ function initializeGameState(roomId, players) {
     currentPlayerIndex: 0, // Host starts
     gamePhase: 'loadout', // loadout, active, ended
     accuracyDebuffs: [0, 0], // Track accuracy debuff turns remaining for each player
+    damageBuffs: [0, 0], // Track damage buff turns remaining for each player
     lastUpdated: Date.now()
   };
   
@@ -54,6 +55,7 @@ function updatePlayerDecks(roomId, players) {
   // Update game phase to active
   gameState.gamePhase = 'active';
   gameState.accuracyDebuffs = [0, 0]; // Initialize accuracy debuff tracking
+  gameState.damageBuffs = [0, 0]; // Initialize damage buff tracking
   gameState.lastUpdated = Date.now();
   
   // Store updated state
@@ -125,6 +127,14 @@ function processGameAction(roomId, socketId, action) {
           damage = Math.floor(damage * critMultiplier);
           console.log(`Critical hit! Kakashi's passive ability activated (${critChance * 100}% chance, ${critMultiplier}x damage)`);
         }
+      }
+      
+      // Apply damage buff if attacking player has Luffy's buff active
+      if (gameState.damageBuffs[playerIndex] > 0) {
+        const luffyMultiplier = characterInfo.specialAbilities['Luffy'].value;
+        const originalDamage = damage;
+        damage = Math.floor(damage * luffyMultiplier);
+        console.log(`Luffy's damage buff active! Damage increased from ${originalDamage} to ${damage} (${luffyMultiplier}x multiplier, ${gameState.damageBuffs[playerIndex]} turns remaining)`);
       }
       
       // Check for passive abilities on defending team
@@ -318,6 +328,16 @@ function processGameAction(roomId, socketId, action) {
           console.log(`Player ${playerIndex} uses ${abilityCard}'s special ability: Accuracy Debuff (reduces opponent accuracy by ${debuffValue * 100}% for ${debuffDuration} turns)`);
           break;
           
+        case 'damage_buff':
+          const buffDuration = abilityData.duration;
+          const buffMultiplier = abilityData.value;
+          
+          // Apply damage buff to player's team
+          gameState.damageBuffs[playerIndex] = buffDuration;
+          
+          console.log(`Player ${playerIndex} uses ${abilityCard}'s special ability: Damage Buff (increases all ally damage by ${buffMultiplier}x for ${buffDuration} turns)`);
+          break;
+          
         default:
           return { error: 'Unknown special ability type' };
       }
@@ -461,6 +481,14 @@ function switchTurn(roomId) {
     if (gameState.accuracyDebuffs[i] > 0) {
       gameState.accuracyDebuffs[i]--;
       console.log(`Player ${i} accuracy debuff decremented to ${gameState.accuracyDebuffs[i]} turns remaining`);
+    }
+  }
+  
+  // Decrement damage buff counters
+  for (let i = 0; i < gameState.damageBuffs.length; i++) {
+    if (gameState.damageBuffs[i] > 0) {
+      gameState.damageBuffs[i]--;
+      console.log(`Player ${i} damage buff decremented to ${gameState.damageBuffs[i]} turns remaining`);
     }
   }
   

@@ -66,8 +66,14 @@ const characterInfo = {
     'Mudkip': {
       type: 'accuracy_debuff',
       value: 0.50, // 50% accuracy reduction
-      duration: 4, // 2 turns
+      duration: 4, // 2 rounds (4 turn switches) 
       description: 'Reduces opponent accuracy by 50% for 2 turns (stacks with Gojo passive)'
+    },
+    'Luffy': {
+      type: 'damage_buff',
+      value: 1.5, // 1.5x damage multiplier
+      duration: 5, // 2 rounds (5 turn switches)
+      description: 'Increases all ally damage by 1.5x for 2 rounds'
     }
   }
 };
