@@ -14,23 +14,23 @@ const characterInfo = {
     'Saitama': [99999, 99999]
   },
   maxHP: {
-    'Sung-jin-woo': 500,
-    'Mikasa': 450,
-    'Luffy': 450,
-    'Gojo': 375,
-    'Natsu': 400,
-    'Ichigo': 375,
-    'Kakashi': 400,
-    'Anya': 450,
-    'Mudkip': 425,
-    'Genos': 550,
-    'Makima': 425,
+    'Sung-jin-woo': 625,
+    'Mikasa': 550,
+    'Luffy': 550,
+    'Gojo': 500,
+    'Natsu': 500,
+    'Ichigo': 475,
+    'Kakashi': 500,
+    'Anya': 550,
+    'Mudkip': 525,
+    'Genos': 650,
+    'Makima': 475,
     'Saitama': 1
   },
   passiveAbilities: {
     'Gojo': {
       type: 'dodge',
-      value: 0.25, // 15% dodge chance for all team cards
+      value: 0.30, // 15% dodge chance for all team cards
       description: 'Grants 15% dodge chance to all team cards'
     },
     'Kakashi': {
@@ -50,7 +50,7 @@ const characterInfo = {
     },
     'Mikasa': {
       type: 'paralysis',
-      value: 0.25, // 15% chance to paralyze enemy on attack
+      value: 0.15, // 15% chance to paralyze enemy on attack
       description: 'Grants 15% chance to paralyze enemy on attack for all team cards'
     },
     'Natsu': {
@@ -63,8 +63,8 @@ const characterInfo = {
   specialAbilities: {
     'Sung-jin-woo': {
       type: 'heal_all',
-      value: 0.15, // 15% of max HP
-      description: 'Heals all ally cards by 15% of their max HP'
+      value: 0.20, // 20% of max HP
+      description: 'Heals all ally cards by 20% of their max HP'
     },
     'Genos': {
       type: 'sacrifice_blast',
