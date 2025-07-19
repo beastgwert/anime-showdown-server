@@ -307,7 +307,7 @@ function processGameAction(roomId, socketId, action) {
             targetCard = gameState.players[opponentIndex].deck[targetCardIndex];
             
             const oldHP = gameState.players[opponentIndex].hp[targetCardIndex];
-            gameState.players[opponentIndex].hp[targetCardIndex] = Math.max(0, oldHP - blastDamage);
+            gameState.players[opponentIndex].hp[targetCardIndex] = Math.max(1, oldHP - blastDamage);
             
             console.log(`${abilityCard} deals ${blastDamage} blast damage to ${targetCard} (${oldHP} -> ${gameState.players[opponentIndex].hp[targetCardIndex]} HP)`);
           }

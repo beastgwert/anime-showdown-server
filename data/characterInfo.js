@@ -1,28 +1,28 @@
 const characterInfo = {
   abilityDamages: {
-    'Sung-jin-woo': [160, 200],
-    'Mikasa': [80, 120],
-    'Luffy': [110, 130],
-    'Gojo': [100, 200],
-    'Natsu': [120, 130],
+    'Sung-jin-woo': [110, 130],
+    'Mikasa': [70, 110],
+    'Luffy': [80, 160],
+    'Gojo': [70, 90],
+    'Natsu': [125, 150],
     'Ichigo': [0, 10],
-    'Kakashi': [150, 200],
-    'Anya': [125, 175],
-    'Mudkip': [90, 130],
-    'Genos': [100, 120],
-    'Makima': [95, 135],
+    'Kakashi': [90, 180],
+    'Anya': [95, 105],
+    'Mudkip': [80, 90],
+    'Genos': [50, 60],
+    'Makima': [1, 300],
     'Saitama': [99999, 99999]
   },
   maxHP: {
     'Sung-jin-woo': 500,
-    'Mikasa': 400,
+    'Mikasa': 450,
     'Luffy': 450,
-    'Gojo': 475,
-    'Natsu': 425,
+    'Gojo': 375,
+    'Natsu': 400,
     'Ichigo': 375,
-    'Kakashi': 450,
-    'Anya': 400,
-    'Mudkip': 350,
+    'Kakashi': 400,
+    'Anya': 450,
+    'Mudkip': 425,
     'Genos': 550,
     'Makima': 425,
     'Saitama': 1
@@ -30,7 +30,7 @@ const characterInfo = {
   passiveAbilities: {
     'Gojo': {
       type: 'dodge',
-      value: 0.20, // 15% dodge chance for all team cards
+      value: 0.25, // 15% dodge chance for all team cards
       description: 'Grants 15% dodge chance to all team cards'
     },
     'Kakashi': {
@@ -50,13 +50,13 @@ const characterInfo = {
     },
     'Mikasa': {
       type: 'paralysis',
-      value: 0.15, // 15% chance to paralyze enemy on attack
+      value: 0.25, // 15% chance to paralyze enemy on attack
       description: 'Grants 15% chance to paralyze enemy on attack for all team cards'
     },
     'Natsu': {
       type: 'burn',
       value: 0.50, // 50% chance to burn enemy on attack
-      burnDamage: 50, // Burn damage per card
+      burnDamage: 40, // Burn damage per card
       description: 'Grants 50% chance to burn enemy on attack, causing burn damage next turn'
     }
   },
