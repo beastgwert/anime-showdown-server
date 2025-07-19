@@ -203,13 +203,20 @@ function initializeSocketHandlers(io) {
       io.to(roomData.roomId).emit('game-state-update', updatedState);
       
       if (action.type === 'special_ability') {
-        const switchedState = gameStateManager.switchTurn(roomData.roomId);
+        // For healing abilities, don't switch turns immediately - wait for client acknowledgment
+        if (updatedState.specialAbilityType === 'heal_all') {
+          // Healing abilities follow the same flow as attacks - wait for game-action-finished
+          console.log(`Healing ability used, waiting for client acknowledgments before switching turns`);
+        } else {
+          // Other special abilities switch turns immediately
+          const switchedState = gameStateManager.switchTurn(roomData.roomId);
 
-        if (switchedState.error) {
-          socket.emit('game-error', { error: switchedState.error });
-          return;
+          if (switchedState.error) {
+            socket.emit('game-error', { error: switchedState.error });
+            return;
+          }
+          io.to(roomData.roomId).emit('switch-turn', switchedState);
         }
-        io.to(roomData.roomId).emit('switch-turn', switchedState);
       }
     });
     
