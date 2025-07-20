@@ -241,8 +241,17 @@ function initializeSocketHandlers(io) {
         return;
       }
       
-      // If both players are ready, check for paralysis before switching turns
+      // If both players are ready, check for game end first, then paralysis before switching turns
       if (result.readyToSwitchTurn) {
+        // Check for game end conditions after animations complete
+        const gameEndResult = gameStateManager.checkGameEndConditions(roomData.roomId);
+        if (gameEndResult.gameEnded) {
+          // Game has ended - broadcast the final state
+          io.to(roomData.roomId).emit('game-state-update', gameEndResult.gameState);
+          console.log(`Game ended in room ${roomData.roomId}. Winner: ${gameEndResult.gameState.winner}, Loser: ${gameEndResult.gameState.loser}`);
+          return;
+        }
+        
         // Get current game state to check for paralysis
         const currentState = gameStateManager.getGameState(roomData.roomId);
         
@@ -270,36 +279,6 @@ function initializeSocketHandlers(io) {
           io.to(roomData.roomId).emit('switch-turn', updatedState);
         }
       }
-    });
-    
-    // Game end handling
-    socket.on('game-end', (data) => {
-      // Get room for this socket
-      const roomData = roomManager.getRoomBySocketId(socket.id);
-      
-      if (!roomData) {
-        socket.emit('room-error', { error: 'Not in a room' });
-        return;
-      }
-      
-      console.log(`Game end requested by ${socket.id} in room ${roomData.roomId}`);
-      
-      // End the game and update game state
-      const result = gameStateManager.endGame(roomData.roomId, socket.id);
-      
-      if (result.error) {
-        socket.emit('game-error', { error: result.error });
-        return;
-      }
-      
-      // Broadcast game end to all players in the room
-      io.to(roomData.roomId).emit('end-game', {
-        gameState: result.gameState,
-        winner: result.winner,
-        loser: result.loser
-      });
-      
-      console.log(`Game ended in room ${roomData.roomId}. Winner: ${result.winner}, Loser: ${result.loser}`);
     });
     
     // Disconnect handling

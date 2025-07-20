@@ -41,7 +41,7 @@ const characterInfo = {
     },
     'Anya': {
       type: 'damage_reduction',
-      value: 0.20, // 20% damage reduction for all team cards
+      value: 0.25, // 20% damage reduction for all team cards
       description: 'Reduces all incoming damage by 20% for all team cards'
     },
     'Makima': {
@@ -56,7 +56,7 @@ const characterInfo = {
     'Natsu': {
       type: 'burn',
       value: 0.50, // 50% chance to burn enemy on attack
-      burnDamage: 40, // Burn damage per card
+      burnDamage: 30, // Burn damage per card
       description: 'Grants 50% chance to burn enemy on attack, causing burn damage next turn'
     }
   },
@@ -79,7 +79,7 @@ const characterInfo = {
     },
     'Luffy': {
       type: 'damage_buff',
-      value: 1.5, // 1.5x damage multiplier
+      value: 1.75, // 1.5x damage multiplier
       duration: 5, // 2 rounds (5 turn switches)
       description: 'Increases all ally damage by 1.5x for 2 rounds'
     }

@@ -234,17 +234,6 @@ function processGameAction(roomId, socketId, action) {
         console.log(`Burn damage applied immediately! Player ${targetPlayerIndex} takes ${burnDamage} damage to all alive cards`);
       }
       
-      if (attackDodged) {
-        console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} - ATTACK DODGED!`);
-      } else if (criticalHit && enemyParalyzed) {
-        console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} for ${damage} damage - CRITICAL HIT! ENEMY PARALYZED!`);
-      } else if (criticalHit) {
-        console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} for ${damage} damage - CRITICAL HIT!`);
-      } else if (enemyParalyzed) {
-        console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} for ${damage} damage - ENEMY PARALYZED!`);
-      } else {
-        console.log(`Player ${playerIndex} attacks with ${attackingCard} (card ${attackingCardIndex}) targeting opponent's card ${targetCardIndex} for ${damage} damage`);
-      }
       break;
       
     case 'special_ability':
@@ -353,12 +342,6 @@ function processGameAction(roomId, socketId, action) {
       
     default:
       return { error: 'Unknown action type' };
-  }
-  
-  // Check for game end conditions after HP modifications
-  const gameEndResult = checkGameEndConditions(roomId);
-  if (gameEndResult.gameEnded) {
-    return gameEndResult.gameState;
   }
   
   gameState.lastUpdated = Date.now();
@@ -476,35 +459,6 @@ function switchTurn(roomId) {
   return gameState;
 }
 
-
-function endGame(roomId, loserSocketId) {
-  if (!activeGameStates.has(roomId)) {
-    return { error: 'Game state not found' };
-  }
-  
-  const gameState = activeGameStates.get(roomId);
-  const loserPlayer = gameState.players.find(player => player.socketId === loserSocketId);
-  const winnerPlayer = gameState.players.find(player => player.socketId !== loserSocketId);
-  
-  if (!loserPlayer || !winnerPlayer) {
-    return { error: 'Invalid player data' };
-  }
-  
-  gameState.gamePhase = 'ended';
-  gameState.winner = winnerPlayer.socketId;
-  gameState.loser = loserPlayer.socketId;
-  gameState.lastUpdated = Date.now();
-  
-  console.log(`Game ended for room: ${roomId}. Winner: ${winnerPlayer.socketId}, Loser: ${loserPlayer.socketId}`);
-  
-  return {
-    gameState,
-    winner: winnerPlayer.socketId,
-    loser: loserPlayer.socketId
-  };
-}
-
-
 // Resets attack state without switching turns (used for paralysis)
 function resetAttackState(roomId) {
   if (!activeGameStates.has(roomId)) {
@@ -561,5 +515,5 @@ module.exports = {
   markPlayerActionFinished,
   switchTurn,
   resetAttackState,
-  endGame
+  checkGameEndConditions
 };
